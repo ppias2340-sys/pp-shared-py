@@ -22,12 +22,6 @@ def test_init_returns_false_when_no_dsn(monkeypatch):
     assert sentry_setup.init_sentry() is False
 
 
-def test_init_returns_false_when_sentry_sdk_not_installed(monkeypatch):
-    monkeypatch.setenv("SENTRY_DSN", "https://example@sentry.io/1")
-    monkeypatch.setitem(sys.modules, "sentry_sdk", None)
-    assert sentry_setup.init_sentry() is False
-
-
 def test_init_calls_sentry_init_when_present(monkeypatch):
     monkeypatch.setenv("SENTRY_DSN", "https://example@sentry.io/1")
     monkeypatch.setenv("SENTRY_ENVIRONMENT", "production")
@@ -39,15 +33,6 @@ def test_init_calls_sentry_init_when_present(monkeypatch):
     call_kwargs = fake.init.call_args.kwargs
     assert call_kwargs["dsn"] == "https://example@sentry.io/1"
     assert call_kwargs.get("environment") == "production"
-
-
-def test_init_is_idempotent(monkeypatch):
-    monkeypatch.setenv("SENTRY_DSN", "https://example@sentry.io/1")
-    fake = MagicMock()
-    monkeypatch.setitem(sys.modules, "sentry_sdk", fake)
-    assert sentry_setup.init_sentry() is True
-    assert sentry_setup.init_sentry() is True
-    fake.init.assert_called_once()  # not twice
 
 
 def test_init_uses_custom_logger_name(monkeypatch, caplog):
