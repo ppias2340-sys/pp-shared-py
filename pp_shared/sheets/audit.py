@@ -195,11 +195,15 @@ def _looks_like_a_date(val: str) -> bool:
     return False
 
 
-def audit_sheet(sheet_def: SheetDef, creds_path: str) -> AuditReport:
-    """Run all audit checks on a sheet. Never raises — returns report on error."""
+def audit_sheet(sheet_def: SheetDef, creds_path: str, *, optional: bool = False) -> AuditReport:
+    """Run all audit checks on a sheet. Never raises — returns report on error.
+    If `optional=True` and sheet/tab doesn't exist, returns passed=True silently.
+    """
     try:
         ws = _open_sheet(sheet_def, creds_path)
     except Exception as e:
+        if optional:
+            return AuditReport(label=sheet_def.label, passed=True)
         return AuditReport(
             label=sheet_def.label,
             passed=False,

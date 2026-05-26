@@ -21,7 +21,10 @@ sys.path.insert(0, str(_script_dir.parent))
 from pp_shared.sheets import SheetDef, audit_sheet, format_report
 
 
-def _sheet_op(label, sheet_id, tab, headers, *, required=None, unique=None, dates=None, skip=0, min_rows=0):
+_DEFAULT_CREDS = ""
+
+
+def _sheet_op(label, sheet_id, tab, headers, *, required=None, unique=None, dates=None, skip=0, min_rows=0, creds=""):
     return SheetDef(
         label=label,
         sheet_id=sheet_id,
@@ -32,7 +35,7 @@ def _sheet_op(label, sheet_id, tab, headers, *, required=None, unique=None, date
         date_cols=set(dates or []),
         skip_rows=skip,
         min_rows=min_rows,
-    )
+    ), creds or _DEFAULT_CREDS
 
 
 # ── Sheet definitions ──────────────────────────────────────────────────────
@@ -40,6 +43,13 @@ def _sheet_op(label, sheet_id, tab, headers, *, required=None, unique=None, date
 #
 # To find sheet_id: open sheet in browser, grab from URL:
 #   https://docs.google.com/spreadsheets/d/<SHEET_ID>/edit
+
+# Column indices are 0-based.
+# Display aliases differ from canonical names in some sheets — we match what
+# the sheet actually shows:
+#   Comprobantes: HEADER_DISPLAY_ALIASES maps "Conciliado"→"", "Estado pago"→"Estado", etc.
+
+_USD_CREDS = os.environ.get("CREDS_USD", "")
 
 SHEETS = [
     _sheet_op(
@@ -62,10 +72,10 @@ SHEETS = [
         sheet_id=os.environ.get("SHEET_ID_COMPROBANTES", ""),
         tab="comprobantes",
         headers=[
-            "Conciliado", "Nº", "ID", "Acción", "Motivo",
+            "", "Nº", "ID", "Acción", "Motivo",
             "Recibido", "Cliente", "Tipo", "Monto", "Moneda",
-            "Estado pago", "Cuenta destino", "Remitente", "Canal", "Comisión %",
-            "Neto CC", "Saldo post", "Grupo", "Sender", "Fecha",
+            "Estado", "Destino", "Remitente", "Canal", "Fee",
+            "Neto CC", "Saldo", "Grupo", "Sender", "Fecha",
             "ID transacción", "Referencia", "Confianza", "Calidad", "Motivos calidad",
             "Dup?", "Notas", "Imagen", "WA msg id", "Notas cliente",
         ],
@@ -133,6 +143,7 @@ SHEETS = [
         unique={1, 17},
         dates={2, 9, 18},
         min_rows=50,
+        creds=_USD_CREDS,
     ),
 ]
 
@@ -148,15 +159,19 @@ def main():
         print("ERROR: credentials.json not found. Set GOOGLE_CREDS_FILE or pass --creds")
         sys.exit(1)
 
-    # Check for missing sheet IDs
-    missing = [s.label for s in SHEETS if not s.sheet_id]
-    if missing:
-        print(f"ERROR: missing SHEET_ID env vars for: {', '.join(missing)}")
-        sys.exit(1)
+    # Sheets that may not exist yet (matcher tabs, separate-owner sheets)
+    OPTIONAL_LABELS = frozenset({"Matches (live)", "Manual Review", "Matches Events", "USD Movements"})
 
     all_passed = True
-    for sheet_def in SHEETS:
-        report = audit_sheet(sheet_def, creds_path)
+    for sheet_def, sheet_creds in SHEETS:
+        if not sheet_def.sheet_id:
+            continue
+        path = sheet_creds or creds_path
+        if not path or not Path(path).exists():
+            print(f"⚠️ {sheet_def.label}: creds not found ({path}), skipped")
+            continue
+        optional = sheet_def.label in OPTIONAL_LABELS
+        report = audit_sheet(sheet_def, path, optional=optional)
         if args.quiet and report.passed and not report.error:
             continue
         print(format_report(report))
@@ -165,7 +180,7 @@ def main():
             all_passed = False
 
     if not all_passed:
-        print("❌ Some audits failed")
+        print("❌ Some sheets need attention")
         sys.exit(1)
     print("✅ All sheets OK")
 
