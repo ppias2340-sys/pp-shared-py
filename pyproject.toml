@@ -23,6 +23,8 @@ dependencies = []
 
 [project.optional-dependencies]
 sentry = ["sentry-sdk>=1.40.0"]
+telegram = ["python-telegram-bot>=21.0"]
+vision = ["openai>=1.40"]
 dev = ["pytest>=7.0"]
 
 [tool.setuptools.packages.find]
