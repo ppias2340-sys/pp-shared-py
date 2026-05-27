@@ -2,6 +2,8 @@
 
 Last updated: 2026-05-26
 
+Language preference: Speak in English by default. If Pedro explicitly asks for Spanish, switch to Spanish for that session.
+
 ## Overview
 Shared Python utilities for Pedro's ecosystem. Extracted to keep bot-comprobantes-wa and matcher-service in sync without copy-paste drift.
 
