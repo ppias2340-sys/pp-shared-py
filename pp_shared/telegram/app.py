@@ -1,14 +1,12 @@
 import logging
 from typing import Any, Callable
 
-from telegram import Update
 from telegram.ext import (
     Application,
     ApplicationBuilder,
     CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
-    Defaults,
     MessageHandler,
     filters,
 )
